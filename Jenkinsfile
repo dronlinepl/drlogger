@@ -308,7 +308,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'mavenCentralCredentials', usernameVariable: 'MAVEN_USERNAME', passwordVariable: 'MAVEN_PASSWORD'),
                                  string(credentialsId: 'OpenPGP_keyID', variable: 'SIGNING_KEY_ID'),
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
-                                 file(credentialsId: 'OpenPGP_secretKeyRingFile', variable: 'SECRET_KEY_RING')]) {
+                                 text(credentialsId: 'OpenPGP_secretKeyRingText', variable: 'SECRET_KEY_RING')]) {
                               withEnv([
                                     "ORG_GRADLE_PROJECT_signingInMemoryKey=$SECRET_KEY_RING",
                                     "ORG_GRADLE_PROJECT_signingInMemoryKeyId=$SIGNING_KEY_ID",
@@ -316,11 +316,6 @@ pipeline {
                                     "ORG_GRADLE_PROJECT_mavenCentralUsername=$MAVEN_USERNAME",
                                     "ORG_GRADLE_PROJECT_mavenCentralPassword=$MAVEN_PASSWORD"
                                 ]) {
-                                echo "SIGNING KEY ID: $SIGNING_KEY_ID"
-                                echo "SIGNING PASSWORD: $SIGNING_PASSWORD"
-                                echo "MAVEN USERNAME: $MAVEN_USERNAME"
-                                echo "MAVEN PASSWORD: $MAVEN_PASSWORD"
-                                echo "SIGNING IN MEMORY KEY (first 64 chars): ${SECRET_KEY_RING?.take(64)}"
                                     sh './gradlew publishAndReleaseToMavenCentral'
                                 }
                    }
