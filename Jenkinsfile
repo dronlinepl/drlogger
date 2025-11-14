@@ -310,7 +310,7 @@ pipeline {
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
                                  file(credentialsId: 'OpenPGP_secretKeyRingFile', variable: 'SECRET_KEY_RING')]) {
                               withEnv([
-                                    "signing.secretKeyRingFile=$SECRET_KEY_RING",
+                                    "signing.secretKey=$SECRET_KEY_RING",
                                     "signing.keyId=$SIGNING_KEY_ID",
                                     "signing.password=$SIGNING_PASSWORD",
                                     "mavenCentralUsername=$MAVEN_USERNAME",
