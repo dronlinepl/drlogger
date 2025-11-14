@@ -316,6 +316,7 @@ pipeline {
                                     "ORG_GRADLE_PROJECT_mavenCentralUsername=$MAVEN_USERNAME",
                                     "ORG_GRADLE_PROJECT_mavenCentralPassword=$MAVEN_PASSWORD"
                                 ]) {
+                                    sh 'printenv'
                                     sh './gradlew publishAndReleaseToMavenCentral'
                                 }
                    }
