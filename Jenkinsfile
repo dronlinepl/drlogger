@@ -316,6 +316,11 @@ pipeline {
                                     "ORG_GRADLE_PROJECT_mavenCentralUsername=$MAVEN_USERNAME",
                                     "ORG_GRADLE_PROJECT_mavenCentralPassword=$MAVEN_PASSWORD"
                                 ]) {
+                                echo "SIGNING KEY ID: $SIGNING_KEY_ID"
+                                echo "SIGNING PASSWORD: $SIGNING_PASSWORD"
+                                echo "MAVEN USERNAME: $MAVEN_USERNAME"
+                                echo "MAVEN PASSWORD: $MAVEN_PASSWORD"
+                                echo "SIGNING IN MEMORY KEY (first 64 chars): ${SECRET_KEY_RING?.take(64)}"
                                     sh './gradlew publishAndReleaseToMavenCentral'
                                 }
                    }
