@@ -305,7 +305,7 @@ pipeline {
             steps {
                 echo "NODE_NAME: $NODE_NAME"
                 //error('Stopping early…')
-                withCredentials([usernamePassword(credentialsId: 'mavenCentralCredentials', usernameVariable: 'MAVEN_USERNAME', passwordVariable: 'MAVEN_PASSWORD'),
+/*                 withCredentials([usernamePassword(credentialsId: 'mavenCentralCredentials', usernameVariable: 'MAVEN_USERNAME', passwordVariable: 'MAVEN_PASSWORD'),
                                  string(credentialsId: 'OpenPGP_keyID', variable: 'SIGNING_KEY_ID'),
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
                                  string(credentialsId: 'OpenPGP_secretKeyRingText', variable: 'SECRET_KEY_RING')]) {
@@ -319,8 +319,8 @@ pipeline {
                                     echo sh(returnStdout: true, script: 'env')
                                     sh './gradlew publishAndReleaseToMavenCentral'
                                 }
-                   }
-
+                   } */
+            sh './gradlew publishAndReleaseToMavenCentral'
             }
 
 
