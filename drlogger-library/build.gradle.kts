@@ -138,7 +138,7 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates(group.toString(), "drlogger", version.toString())
+    coordinates("pl.dronline.multiplatform", "drlogger", version.toString())
 
     pom {
         name = "Drlogger Library"
