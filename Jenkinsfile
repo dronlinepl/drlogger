@@ -308,7 +308,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'mavenCentralCredentials', usernameVariable: 'MAVEN_USERNAME', passwordVariable: 'MAVEN_PASSWORD'),
                                  string(credentialsId: 'OpenPGP_keyID', variable: 'SIGNING_KEY_ID'),
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
-                                 file(credentialsId: 'secretKeyRingFileCredentialId', variable: 'SECRET_KEY_RING')]) {
+                                 file(credentialsId: 'OpenPGP_secretKeyRingFile', variable: 'SECRET_KEY_RING')]) {
                                  sh '''
                                          ./gradlew publishAndReleaseToMavenCentral \
                                          -Psigning.secretKeyRingFile=$SECRET_KEY_RING \
