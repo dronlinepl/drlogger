@@ -308,7 +308,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'mavenCentralCredentials', usernameVariable: 'MAVEN_USERNAME', passwordVariable: 'MAVEN_PASSWORD'),
                                  string(credentialsId: 'OpenPGP_keyID', variable: 'SIGNING_KEY_ID'),
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
-                                 text(credentialsId: 'OpenPGP_secretKeyRingText', variable: 'SECRET_KEY_RING')]) {
+                                 string(credentialsId: 'OpenPGP_secretKeyRingText', variable: 'SECRET_KEY_RING')]) {
                               withEnv([
                                     "ORG_GRADLE_PROJECT_signingInMemoryKey=$SECRET_KEY_RING",
                                     "ORG_GRADLE_PROJECT_signingInMemoryKeyId=$SIGNING_KEY_ID",
