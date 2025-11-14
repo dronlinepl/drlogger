@@ -310,11 +310,11 @@ pipeline {
                                  string(credentialsId: 'OpenPGP_password', variable: 'SIGNING_PASSWORD'),
                                  file(credentialsId: 'OpenPGP_secretKeyRingFile', variable: 'SECRET_KEY_RING')]) {
                               withEnv([
-                                    "signing.secretKey=$SECRET_KEY_RING",
-                                    "signing.keyId=$SIGNING_KEY_ID",
-                                    "signing.password=$SIGNING_PASSWORD",
-                                    "mavenCentralUsername=$MAVEN_USERNAME",
-                                    "mavenCentralPassword=$MAVEN_PASSWORD"
+                                    "ORG_GRADLE_PROJECT_signingInMemoryKey=$SECRET_KEY_RING",
+                                    "ORG_GRADLE_PROJECT_signingInMemoryKeyId=$SIGNING_KEY_ID",
+                                    "ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=$SIGNING_PASSWORD",
+                                    "ORG_GRADLE_PROJECT_mavenCentralUsername=$MAVEN_USERNAME",
+                                    "ORG_GRADLE_PROJECT_mavenCentralPassword=$MAVEN_PASSWORD"
                                 ]) {
                                     sh './gradlew publishAndReleaseToMavenCentral'
                                 }
