@@ -1,0 +1,4 @@
+headers = systemd/sd-journal.h
+headerFilter = systemd/sd-journal.h
+compilerOpts = -I/usr/include
+linkerOpts = -L/lib/x86_64-linux-gnu -lsystemd

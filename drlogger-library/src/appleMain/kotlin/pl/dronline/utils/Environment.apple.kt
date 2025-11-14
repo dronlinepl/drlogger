@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2017-2025 DR-ONLINE SP. Z O.O.
+ * Copyright (c) 2017-2025 Przemysław Dobrowolski
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+package pl.dronline.utils
+
+import platform.Foundation.NSProcessInfo
+
+@Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+actual object Environment {
+    actual fun get(key: String): String? = NSProcessInfo.processInfo.environment[key] as? String
+}
