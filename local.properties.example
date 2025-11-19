@@ -1,0 +1,11 @@
+# Local configuration file (copy to local.properties and fill in your values)
+# This file is ignored by git to protect sensitive credentials
+
+# Artifactory configuration (optional, only needed for publishing to private repository)
+artifactoryUrl=https://your-artifactory-url/artifactory
+artifactory_username=your-username
+artifactory_password=your-password-or-api-key
+artifactory_repo=libs-release-local
+
+# Android SDK location (if not set via ANDROID_HOME environment variable)
+# sdk.dir=/path/to/android/sdk

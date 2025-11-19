@@ -1,0 +1,35 @@
+[versions]
+agp = "8.12.3"
+kotlin = "2.2.21"
+nexus-publish = "2.0.0"
+android-minSdk = "24"
+android-compileSdk = "36"
+coroutines = "1.10.2"
+kotlinxDatetime = "0.7.1"
+frog = "6.0.2"
+drpub = "0.3.33"
+log4j = "2.25.2"
+kotlinxSerialization = "1.9.0"
+dokka = "2.1.0"
+atomicfu = "0.29.0"
+maven-publish = "0.34.0"
+
+[libraries]
+dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+nexus-publish = { module = "io.github.gradle-nexus.publish-plugin:io.github.gradle-nexus.publish-plugin.gradle.plugin", version.ref = "nexus-publish" }
+kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j"}
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
+
+[plugins]
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+jfrogArtifactory = { id = "com.jfrog.artifactory", version.ref = "frog" }
+kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+drpublish = { id = "pl.dronline.publish", version.ref = "drpub" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
+

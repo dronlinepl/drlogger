@@ -1,0 +1,18 @@
+*.iml
+.gradle
+.idea
+.DS_Store
+build
+captures
+.externalNativeBuild
+.cxx
+local.properties
+xcuserdata
+.kotlin/
+
+# Sensitive files - never commit these!
+*.jks
+*.keystore
+google-services.json
+secrets.properties
+JenkinsFile
