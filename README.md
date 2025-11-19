@@ -45,7 +45,7 @@ repositories {
 }
 
 dependencies {
-    implementation("pl.dronline.multiplatform.utils:drlogger-library:0.5.+")
+    implementation("pl.dronline.multiplatform.utils:drlogger-library:1.0.+")
 }
 ```
 ## Quick Start
