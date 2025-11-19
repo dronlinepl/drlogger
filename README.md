@@ -1,7 +1,7 @@
 # DR-Logger
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Maven Central](https://img.shields.io/maven-central/v/ipl.dronline.multiplatform.utils/drlogger)](https://central.sonatype.com/search?namespace=pl.dronline.multiplatform.utils)
+[![Maven Central](https://img.shields.io/maven-central/v/pl.dronline.multiplatform.utils/drlogger)](https://central.sonatype.com/search?namespace=pl.dronline.multiplatform.utils)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.2.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![GitHub](https://img.shields.io/badge/GitHub-drlogger--library-blue?logo=github)](https://github.com/dronlinepl/drlogger-library)
 
