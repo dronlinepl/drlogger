@@ -36,7 +36,7 @@ object StringFormatter {
                     else -> {
                         val spec = parseFormatSpecifier(format, i)
                         if (spec != null) {
-                            val argIndex = spec.position ?: getNextArgIndex(format, i, args.size)
+                            val argIndex = spec.position ?: getNextArgIndex(format, i)
                             if (argIndex < args.size) {
                                 result.append(formatValue(args[argIndex], spec))
                             } else {
@@ -148,7 +148,7 @@ object StringFormatter {
         return null
     }
 
-    private fun getNextArgIndex(format: String, currentPos: Int, argsSize: Int): Int {
+    private fun getNextArgIndex(format: String, currentPos: Int): Int {
         var argIndex = 0
         var i = 0
 
@@ -219,7 +219,8 @@ object StringFormatter {
         return if (precision == 0) {
             intPart.toString()
         } else {
-            val fracStr = (fracPart * multiplier).toLong().toString().padStart(precision, '0')
+            // Use round() to avoid floating point precision issues
+            val fracStr = kotlin.math.round(fracPart * multiplier).toLong().toString().padStart(precision, '0')
             "$intPart.$fracStr"
         }
     }
@@ -243,7 +244,7 @@ object StringFormatter {
 
         val formattedMantissa = formatDouble(mantissa, precision)
         val e = if (uppercase) "E" else "e"
-        val expSign = if (exponent >= 0) "+" else ""
+        val expSign = if (exponent >= 0) "+" else "-"
         val expStr = kotlin.math.abs(exponent).toString().padStart(2, '0')
 
         return "$sign$formattedMantissa$e$expSign$expStr"
@@ -258,15 +259,46 @@ object StringFormatter {
         val absNumber = kotlin.math.abs(number)
         val exponent = if (absNumber == 0.0) 0 else kotlin.math.floor(kotlin.math.log10(absNumber)).toInt()
 
-        return if (exponent >= -4 && exponent < precision) {
+        val formatted = if (exponent >= -4 && exponent < precision) {
             formatDouble(number, precision - 1 - exponent)
         } else {
             formatScientific(number, precision - 1, uppercase)
         }
+
+        // Remove trailing zeros and unnecessary decimal point for %g format
+        return removeTrailingZeros(formatted)
+    }
+
+    private fun removeTrailingZeros(value: String): String {
+        if (!value.contains('.')) {
+            return value
+        }
+
+        // Handle scientific notation separately
+        val eIndex = value.indexOfFirst { it == 'e' || it == 'E' }
+        if (eIndex >= 0) {
+            val mantissa = value.substring(0, eIndex)
+            val exponent = value.substring(eIndex)
+            val trimmedMantissa = mantissa.trimEnd('0').let {
+                if (it.endsWith('.')) it.dropLast(1) else it
+            }
+            return trimmedMantissa + exponent
+        }
+
+        // Remove trailing zeros from fixed-point notation
+        var result = value.trimEnd('0')
+        // Remove decimal point if no fractional part remains
+        if (result.endsWith('.')) {
+            result = result.dropLast(1)
+        }
+        return result
     }
 
     private fun formatHex(value: Any?, uppercase: Boolean): String {
         val number = when (value) {
+            is Byte -> value.toUByte().toLong()  // Convert signed byte to unsigned
+            is Short -> value.toUShort().toLong()  // Convert signed short to unsigned
+            is Int -> value.toLong() and 0xFFFFFFFFL  // Mask to unsigned 32-bit
             is Number -> value.toLong()
             is Char -> value.code.toLong()
             else -> value?.toString()?.toLongOrNull() ?: 0L
@@ -278,6 +310,9 @@ object StringFormatter {
 
     private fun formatOctal(value: Any?): String {
         val number = when (value) {
+            is Byte -> value.toUByte().toLong()  // Convert signed byte to unsigned
+            is Short -> value.toUShort().toLong()  // Convert signed short to unsigned
+            is Int -> value.toLong() and 0xFFFFFFFFL  // Mask to unsigned 32-bit
             is Number -> value.toLong()
             is Char -> value.code.toLong()
             else -> value?.toString()?.toLongOrNull() ?: 0L
