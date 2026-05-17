@@ -17,5 +17,5 @@ actual fun consolePrint(s: String) {
 
 @OptIn(ExperimentalForeignApi::class)
 actual fun consoleError(s: String) {
-    fprintf(stderr, s)
+    fprintf(stderr, "%s",s)
 }

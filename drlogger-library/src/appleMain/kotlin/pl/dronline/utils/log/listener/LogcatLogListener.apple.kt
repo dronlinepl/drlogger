@@ -7,6 +7,9 @@
 
 package pl.dronline.utils.log.listener
 
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.cstr
+import kotlinx.cinterop.memScoped
 import pl.dronline.utils.datetime.toString
 import pl.dronline.utils.log.ALogListener
 import pl.dronline.utils.log.DrLoggerFactory.prepareMessage
@@ -35,6 +38,7 @@ actual class LogcatLogListener : ALogListener("LogcatLogListener"), ILogListener
         putAll(DEFAULT_EMOIMAP)
     }
 
+    @OptIn(ExperimentalForeignApi::class)
     actual override fun writeLog(
         timestamp: Instant,
         level: ILogListener.Level,
@@ -47,7 +51,16 @@ actual class LogcatLogListener : ALogListener("LogcatLogListener"), ILogListener
             append(" ")
             append(prepareMessage(type, message, t))
         }
-        NSLog(sb)
+        // Must NOT pass the message as the format string — any '%' in the
+        // log content (JSON, "%s", URL-encoded paths) is otherwise treated
+        // as a conversion specifier and consumes nonexistent varargs,
+        // crashing CoreFoundation in __CFStringAppendFormatCore /
+        // _platform_strlen. Kotlin/Native doesn't auto-bridge a Kotlin
+        // String (or even an NSString built from it) through ObjC variadic
+        // args, so going via .cstr under "%s" is the reliable path.
+        memScoped {
+            NSLog("%s", sb.cstr.ptr)
+        }
     }
 
     actual override var enabled: Boolean = true
