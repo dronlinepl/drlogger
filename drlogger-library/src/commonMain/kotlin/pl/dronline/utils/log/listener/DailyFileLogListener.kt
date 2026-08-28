@@ -10,6 +10,10 @@ package pl.dronline.utils.log.listener
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.toLocalDateTime
 import pl.dronline.utils.datetime.toString
 import pl.dronline.utils.filesystem.FileSize
 import pl.dronline.utils.filesystem.FileSystem
@@ -19,9 +23,21 @@ import pl.dronline.utils.log.DrLoggerFactory.prepareMessage
 import pl.dronline.utils.log.ILogListener
 import pl.dronline.utils.log.consoleError
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+
+@OptIn(ExperimentalTime::class)
+internal fun retentionCutoffDate(
+    now: Instant,
+    maxFileAgeDays: Int,
+    timeZone: TimeZone,
+): String {
+    return now.toLocalDateTime(timeZone)
+        .date
+        .minus(maxFileAgeDays, DateTimeUnit.DAY)
+        .toString()
+        .replace("-", "")
+}
 
 /**
  * Base implementation of daily file log listener.
@@ -176,7 +192,11 @@ open class BaseDailyFileLogListener : ALogListener("DailyFileLogListener"), ILog
 
             if (logFiles.isEmpty()) return
 
-            val cutoffDate = (Clock.System.now() - maxFileAgeDays.days).toString("yyyyMMdd")
+            val cutoffDate = retentionCutoffDate(
+                now = Clock.System.now(),
+                maxFileAgeDays = maxFileAgeDays,
+                timeZone = TimeZone.currentSystemDefault(),
+            )
 
             val filesToDelete = mutableListOf<String>()
             val remainingFiles = logFiles.toMutableList()
