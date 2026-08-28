@@ -53,6 +53,20 @@ logger.error("Failed to connect to server")
 logger.fatal("Critical system failure")
 ```
 
+### Short-Lived Processes
+
+Logs are processed asynchronously. CLI tools, `oneshot` services, and other short-lived processes should flush pending messages and stop listeners before exiting:
+
+```kotlin
+try {
+    DrLogger("Updater").info("Update completed")
+} finally {
+    DrLogger.shutdownBlocking()
+}
+```
+
+The suspending `DrLogger.shutdown()` variant is available for coroutine-based code. Use `DrLogger.flush()` or `DrLogger.flushBlocking()` when listeners should remain active.
+
 ### Short Form Methods
 
 ```kotlin

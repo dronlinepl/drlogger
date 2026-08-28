@@ -7,10 +7,10 @@
 
 package pl.dronline.utils.log
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
@@ -96,29 +96,35 @@ abstract class ALogListener(override val name: String) : ILogListener {
         // Call onStart callback
         onStart()
 
+        val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            DrLoggerFactory.events.collect { event ->
+                when (event) {
+                    is LoggerEvent.Message -> {
+                        val message = event.value
+                        if (!shouldProcessMessage(message)) return@collect
 
-        listeningJob = scope.launch {
-            DrLoggerFactory.events
-                .filter { shouldProcessMessage(it) }
-                .catch { exception ->
-                    println("Error in listener $name: ${exception.message}")
-                }
-                .collect { message ->
-                    try {
-                        writeLog(
-                            message.timestamp,
-                            message.level,
-                            message.type,
-                            message.data,
-                            message.throwable
-                        )
-                    } catch (e: Exception) {
-                        println("Error writing log in $name: ${e.message}")
+                        try {
+                            writeLog(
+                                message.timestamp,
+                                message.level,
+                                message.type,
+                                message.data,
+                                message.throwable,
+                            )
+                        } catch (exception: CancellationException) {
+                            throw exception
+                        } catch (exception: Exception) {
+                            consoleError("Error writing log in $name: ${exception.message}")
+                        }
                     }
-                }
-        }
 
-        return listeningJob!!
+                    is LoggerEvent.Flush -> event.acknowledge()
+                }
+            }
+        }
+        listeningJob = job
+
+        return job
     }
 
     /**

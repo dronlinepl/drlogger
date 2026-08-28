@@ -9,11 +9,12 @@ package pl.dronline.utils.log
 
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Clock.System.now
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 /**
@@ -25,8 +26,10 @@ import kotlin.time.ExperimentalTime
  * slow listeners (like file writers) don't block faster ones (like console loggers).
  */
 internal object DrLoggerFactory {
+    private const val DISPATCH_QUEUE_CAPACITY = 512
 
     private var requiredLevel = atomic(ILogListener.Level.FATAL)
+    private val droppedMessageCount = atomic(0L)
 
     internal fun prepareMessage(tag: String, message: String, t: Throwable?): String {
         val sb = StringBuilder()
@@ -62,10 +65,23 @@ internal object DrLoggerFactory {
      * Listeners subscribe to this flow independently.
      * Using replay = 0 and extraBufferCapacity = 512 for better performance.
      */
-    private val _events = MutableSharedFlow<LogMessage>(
+    private val _events = MutableSharedFlow<LoggerEvent>(
         replay = 0,
         extraBufferCapacity = 512
     )
+
+    private val dispatchQueue = Channel<LoggerEvent>(DISPATCH_QUEUE_CAPACITY)
+
+    init {
+        listenerScope.launch {
+            for (event in dispatchQueue) {
+                _events.emit(event)
+                if (event is LoggerEvent.Flush) {
+                    event.acknowledge()
+                }
+            }
+        }
+    }
 
     val events = _events.asSharedFlow()
 
@@ -85,6 +101,7 @@ internal object DrLoggerFactory {
         runBlocking {
             mutex.withLock {
                 listeners.forEach { listener ->
+                    if (_listeners.any { it === listener }) return@forEach
                     _listeners.add(listener)
                     // Start the listener's subscription
                     listener.startListening(listenerScope)
@@ -119,6 +136,36 @@ internal object DrLoggerFactory {
                 requiredLevel.value = ILogListener.Level.FATAL
             }
         }
+    }
+
+    suspend fun flush(timeout: Duration): Boolean {
+        return withTimeoutOrNull(timeout) {
+            val flush = mutex.withLock {
+                val flush = LoggerEvent.Flush(_listeners.size + 1)
+                dispatchQueue.send(flush)
+                flush
+            }
+            flush.await()
+            true
+        } ?: false
+    }
+
+    fun flushBlocking(timeout: Duration): Boolean = runBlocking {
+        flush(timeout)
+    }
+
+    suspend fun shutdown(timeout: Duration): Boolean {
+        val flushed = flush(timeout)
+        mutex.withLock {
+            _listeners.forEach { it.stopListening() }
+            _listeners.clear()
+            requiredLevel.value = ILogListener.Level.FATAL
+        }
+        return flushed
+    }
+
+    fun shutdownBlocking(timeout: Duration): Boolean = runBlocking {
+        shutdown(timeout)
     }
 
     /**
@@ -191,15 +238,17 @@ internal object DrLoggerFactory {
         // Do not emit if level too low
         if (logMessage.level < requiredLevel.value) return
 
-        // tryEmit is non-blocking and returns false if buffer is full
-        if (!_events.tryEmit(logMessage)) {
-            // Log dropped message in debug mode
-            //val timestamp = now()//          .toString("HH:mm:ss.SSS")
-            //println("[${timestamp}] Warning: Log message delayed due to buffer overflow: ${logMessage.type}")
-            listenerScope.launch {
-                _events.emit(logMessage)
+        val event = LoggerEvent.Message(logMessage)
+        if (dispatchQueue.trySend(event).isSuccess) {
+            val dropped = droppedMessageCount.getAndSet(0L)
+            if (dropped > 0L) {
+                consoleError("Dropped $dropped log messages while the dispatch queue was full")
             }
-
+        } else {
+            val dropped = droppedMessageCount.incrementAndGet()
+            if (dropped == 1L) {
+                consoleError("Dispatch queue is full; new log messages will be dropped")
+            }
         }
     }
 

@@ -7,6 +7,8 @@
 
 package pl.dronline.utils.log
 
+import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CompletableDeferred
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -36,5 +38,30 @@ class LogMessage(
     @OptIn(ExperimentalTime::class)
     override fun toString(): String {
         return "LogMessage(level=$level, type='$type', throwable=$throwable, timestamp=$timestamp, data='$data')"
+    }
+}
+
+internal sealed interface LoggerEvent {
+    data class Message(val value: LogMessage) : LoggerEvent
+
+    class Flush(listenerCount: Int) : LoggerEvent {
+        private val remainingListeners = atomic(listenerCount)
+        private val completion = CompletableDeferred<Unit>()
+
+        init {
+            if (listenerCount == 0) {
+                completion.complete(Unit)
+            }
+        }
+
+        fun acknowledge() {
+            if (remainingListeners.decrementAndGet() == 0) {
+                completion.complete(Unit)
+            }
+        }
+
+        suspend fun await() {
+            completion.await()
+        }
     }
 }

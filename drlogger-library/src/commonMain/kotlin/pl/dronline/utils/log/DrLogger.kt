@@ -7,6 +7,8 @@
 
 package pl.dronline.utils.log
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.reflect.KClass
 
 
@@ -38,6 +40,36 @@ open class DrLoggerImpl {
      * */
     fun recalculateLogLevel() {
         DrLoggerFactory.recalculateLogLevel()
+    }
+
+    /**
+     * Waits until every listener has processed all log messages emitted before this call.
+     * Returns false when the timeout expires.
+     */
+    suspend fun flush(timeout: Duration = 5.seconds): Boolean {
+        return DrLoggerFactory.flush(timeout)
+    }
+
+    /**
+     * Blocking variant of [flush] for non-coroutine entry points.
+     */
+    fun flushBlocking(timeout: Duration = 5.seconds): Boolean {
+        return DrLoggerFactory.flushBlocking(timeout)
+    }
+
+    /**
+     * Flushes pending messages and stops all listeners.
+     * Returns false when flushing timed out; listeners are stopped in either case.
+     */
+    suspend fun shutdown(timeout: Duration = 5.seconds): Boolean {
+        return DrLoggerFactory.shutdown(timeout)
+    }
+
+    /**
+     * Blocking variant of [shutdown] for non-coroutine entry points.
+     */
+    fun shutdownBlocking(timeout: Duration = 5.seconds): Boolean {
+        return DrLoggerFactory.shutdownBlocking(timeout)
     }
 
     val listeners: List<ILogListener>
