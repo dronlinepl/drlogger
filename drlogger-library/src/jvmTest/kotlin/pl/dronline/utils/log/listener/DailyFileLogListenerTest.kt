@@ -19,7 +19,7 @@ class DailyFileLogListenerTest {
 
     @BeforeTest
     fun setup() {
-        // Tworzymy tymczasowy katalog dla testów
+        // Create a temporary directory for tests
         tempDir = Files.createTempDirectory("log-test-").toFile()
         println("\n=== Test Setup ===")
         println("Created temp directory: ${tempDir.absolutePath}")
@@ -33,7 +33,7 @@ class DailyFileLogListenerTest {
 
     @AfterTest
     fun tearDown() {
-        // Czyścimy po testach
+        // Clean up after tests
         println("\n=== Test Cleanup ===")
         println("Deleting temp directory: ${tempDir.absolutePath}")
         tempDir.deleteRecursively()
@@ -72,32 +72,18 @@ class DailyFileLogListenerTest {
     }
 
     @Test
-    fun `should delete files older than maxFileAgeDays`() {
+    fun `should determine file age from filename instead of modification time`() {
         // Given
-        listener.maxFileAgeDays = 7 // Pliki starsze niż 7 dni
+        listener.maxFileAgeDays = 7
 
-        // Tworzymy stare pliki
-        val oldFile1 = createLogFile("test-20240101.log", 30) // 30 dni temu
-        val oldFile2 = createLogFile("test-20240115.log", 15) // 15 dni temu
-        val recentFile = createLogFile("test-20240201.log", 3) // 3 dni temu
-
-        println("Created test files:")
-        println("  - ${oldFile1.name} (30 days old) exists: ${oldFile1.exists()}")
-        println("  - ${oldFile2.name} (15 days old) exists: ${oldFile2.exists()}")
-        println("  - ${recentFile.name} (3 days old) exists: ${recentFile.exists()}")
+        val oldFile = createLogFile(logFileName(daysAgo = 30), modifiedDaysAgo = 0)
+        val recentFile = createLogFile(logFileName(daysAgo = 3), modifiedDaysAgo = 30)
 
         // When
-        println("\nRunning cleanup with maxFileAgeDays=${listener.maxFileAgeDays}...")
         listener.performCleanup()
 
         // Then
-        println("\nAfter cleanup:")
-        println("  - ${oldFile1.name} exists: ${oldFile1.exists()}")
-        println("  - ${oldFile2.name} exists: ${oldFile2.exists()}")
-        println("  - ${recentFile.name} exists: ${recentFile.exists()}")
-
-        assertFalse(oldFile1.exists(), "Old file 1 should be deleted")
-        assertFalse(oldFile2.exists(), "Old file 2 should be deleted")
+        assertFalse(oldFile.exists(), "Filename date should cause the old file to be deleted")
         assertTrue(recentFile.exists(), "Recent file should still exist")
     }
 
@@ -105,11 +91,11 @@ class DailyFileLogListenerTest {
     fun `should keep only maxFileCount files`() {
         // Given
         listener.maxFileCount = 3
-        listener.maxFileAgeDays = 999 // Nie usuwamy ze względu na wiek
+        listener.maxFileAgeDays = 9999 // Do not delete based on age
 
         println("Test: Keep only ${listener.maxFileCount} files")
 
-        // Tworzymy 5 plików
+        // Create 5 files
         val files = (1..5).map { i ->
             createLogFile("test-2024010$i.log", 5 - i)
         }
@@ -135,21 +121,21 @@ class DailyFileLogListenerTest {
 
         assertEquals(3, remainingFiles?.size ?: 0)
 
-        // Sprawdzamy że zostały 3 najnowsze pliki
+        // Verify that the 3 newest files remain
         assertTrue(files[2].exists(), "File 3 should exist")
         assertTrue(files[3].exists(), "File 4 should exist")
         assertTrue(files[4].exists(), "File 5 should exist")
 
-        // A 2 najstarsze zostały usunięte
+        // Verify that the 2 oldest files were deleted
         assertFalse(files[0].exists(), "File 1 should be deleted")
         assertFalse(files[1].exists(), "File 2 should be deleted")
     }
 
     @Test
     fun `should handle empty directory`() {
-        // Given - pusty katalog
+        // Given - empty directory
 
-        // When & Then - nie powinno rzucić wyjątku
+        // When & Then - should not throw
         assertDoesNotThrow {
             listener.performCleanup()
         }
@@ -160,7 +146,7 @@ class DailyFileLogListenerTest {
         // Given
         listener.path = "/non/existent/path"
 
-        // When & Then - nie powinno rzucić wyjątku
+        // When & Then - should not throw
         assertDoesNotThrow {
             listener.performCleanup()
         }
@@ -177,7 +163,7 @@ class DailyFileLogListenerTest {
             writeText("Wrong prefix")
         }
 
-        listener.maxFileAgeDays = 5 // Wszystkie pliki są "stare"
+        listener.maxFileAgeDays = 5 // All matching log files are old
 
         // When
         listener.performCleanup()
@@ -264,10 +250,11 @@ class DailyFileLogListenerTest {
         listener.maxFileSize = 100.bytes // Enable size rolling
 
         // Create old indexed files
-        val oldMainFile = createLogFile("test-20240101.log", 10)
-        val oldIndexedFile1 = createLogFile("test-20240101.1.log", 10)
-        val oldIndexedFile2 = createLogFile("test-20240101.2.log", 10)
-        val recentFile = createLogFile("test-20240201.log", 2)
+        val oldDate = (Clock.System.now() - 10.days).toString("yyyyMMdd")
+        val oldMainFile = createLogFile("test-$oldDate.log", modifiedDaysAgo = 0)
+        val oldIndexedFile1 = createLogFile("test-$oldDate.1.log", modifiedDaysAgo = 0)
+        val oldIndexedFile2 = createLogFile("test-$oldDate.2.log", modifiedDaysAgo = 0)
+        val recentFile = createLogFile(logFileName(daysAgo = 2), modifiedDaysAgo = 10)
 
         println("\n=== Test: Cleanup indexed files based on age ===")
         println("Created files:")
@@ -296,7 +283,7 @@ class DailyFileLogListenerTest {
     fun `should cleanup indexed files based on count`() {
         // Given
         listener.maxFileCount = 3
-        listener.maxFileAgeDays = 999 // Don't delete based on age
+        listener.maxFileAgeDays = 9999 // Don't delete based on age
         listener.maxFileSize = 100.bytes // Enable size rolling
 
         println("\n=== Test: Cleanup indexed files based on count ===")
@@ -325,6 +312,25 @@ class DailyFileLogListenerTest {
         remainingFiles?.forEach { println("  - ${it.name}") }
 
         assertEquals(3, remainingFiles?.size ?: 0, "Should keep only 3 files")
+    }
+
+    @Test
+    fun `should keep newest rotation files regardless of modification time`() {
+        // Given
+        listener.maxFileCount = 2
+        listener.maxFileAgeDays = 9999
+        val date = Clock.System.now().toString("yyyyMMdd")
+        val mainFile = createLogFile("test-$date.log", modifiedDaysAgo = 30)
+        val previousFile = createLogFile("test-$date.1.log", modifiedDaysAgo = 20)
+        val oldestFile = createLogFile("test-$date.2.log", modifiedDaysAgo = 0)
+
+        // When
+        listener.performCleanup()
+
+        // Then
+        assertTrue(mainFile.exists(), "Main file should be treated as the newest rotation file")
+        assertTrue(previousFile.exists(), "First indexed file should be retained")
+        assertFalse(oldestFile.exists(), "Highest rotation index should be deleted first")
     }
 
     @Test
@@ -363,12 +369,12 @@ class DailyFileLogListenerTest {
     fun `cleanup should be called on start`() = runBlocking {
         // Given
         listener.maxFileAgeDays = 1
-        val oldFile = createLogFile("test-20240101.log", 10)
+        val oldFile = createLogFile(logFileName(daysAgo = 10), modifiedDaysAgo = 0)
 
         // When
         listener.startListening(this)
 
-        // Then - plik powinien zostać usunięty bo onStart wywołuje performCleanup
+        // Then - the file should be deleted because onStart calls performCleanup
         assertFalse(oldFile.exists(), "Old file should be deleted on start")
 
         // Cleanup
@@ -377,15 +383,20 @@ class DailyFileLogListenerTest {
 
     // Helper functions
 
-    private fun createLogFile(name: String, daysAgo: Int): File {
+    private fun createLogFile(name: String, modifiedDaysAgo: Int): File {
         val file = File(tempDir, name)
         file.writeText("Test log content\n")
 
-        // Ustawiamy datę modyfikacji pliku
-        val modifiedTime = Clock.System.now() - daysAgo.days
+        // Set the file modification time
+        val modifiedTime = Clock.System.now() - modifiedDaysAgo.days
         file.setLastModified(modifiedTime.toEpochMilliseconds())
 
         return file
+    }
+
+    private fun logFileName(daysAgo: Int): String {
+        val date = (Clock.System.now() - daysAgo.days).toString("yyyyMMdd")
+        return "test-$date.log"
     }
 
     private fun assertDoesNotThrow(block: () -> Unit) {

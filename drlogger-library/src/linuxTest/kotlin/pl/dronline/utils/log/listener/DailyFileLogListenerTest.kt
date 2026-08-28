@@ -2,6 +2,7 @@ package pl.dronline.utils.log.listener
 
 import kotlinx.cinterop.*
 import kotlinx.coroutines.runBlocking
+import pl.dronline.utils.datetime.toString
 import pl.dronline.utils.log.ILogListener
 import platform.posix.*
 import kotlin.test.*
@@ -18,7 +19,7 @@ class DailyFileLogListenerTest {
 
     @BeforeTest
     fun setup() {
-        // Tworzymy tymczasowy katalog dla testów
+        // Create a temporary directory for tests
         val template = "/tmp/log-test-XXXXXX"
         val buffer = ByteArray(template.length + 1)
         template.encodeToByteArray().copyInto(buffer)
@@ -39,7 +40,7 @@ class DailyFileLogListenerTest {
 
     @AfterTest
     fun tearDown() {
-        // Czyścimy po testach
+        // Clean up after tests
         println("\n=== Test Cleanup ===")
         println("Deleting temp directory: $tempDir")
         deleteDirectory(tempDir)
@@ -76,32 +77,18 @@ class DailyFileLogListenerTest {
     }
 
     @Test
-    fun `should delete files older than maxFileAgeDays`() {
+    fun `should determine file age from filename instead of modification time`() {
         // Given
-        listener.maxFileAgeDays = 7 // Pliki starsze niż 7 dni
+        listener.maxFileAgeDays = 7
 
-        // Tworzymy stare pliki
-        val oldFile1 = createLogFile("test-20240101.log", 30) // 30 dni temu
-        val oldFile2 = createLogFile("test-20240115.log", 15) // 15 dni temu
-        val recentFile = createLogFile("test-20240201.log", 3) // 3 dni temu
-
-        println("\nCreated test files:")
-        println("  - ${oldFile1.name} (30 days old) exists: ${fileExists(oldFile1.path)}")
-        println("  - ${oldFile2.name} (15 days old) exists: ${fileExists(oldFile2.path)}")
-        println("  - ${recentFile.name} (3 days old) exists: ${fileExists(recentFile.path)}")
+        val oldFile = createLogFile(logFileName(daysAgo = 30), modifiedDaysAgo = 0)
+        val recentFile = createLogFile(logFileName(daysAgo = 3), modifiedDaysAgo = 30)
 
         // When
-        println("\nRunning cleanup with maxFileAgeDays=${listener.maxFileAgeDays}...")
         listener.performCleanup()
 
         // Then
-        println("\nAfter cleanup:")
-        println("  - ${oldFile1.name} exists: ${fileExists(oldFile1.path)}")
-        println("  - ${oldFile2.name} exists: ${fileExists(oldFile2.path)}")
-        println("  - ${recentFile.name} exists: ${fileExists(recentFile.path)}")
-
-        assertFalse(fileExists(oldFile1.path), "Old file 1 should be deleted")
-        assertFalse(fileExists(oldFile2.path), "Old file 2 should be deleted")
+        assertFalse(fileExists(oldFile.path), "Filename date should cause the old file to be deleted")
         assertTrue(fileExists(recentFile.path), "Recent file should still exist")
     }
 
@@ -109,11 +96,11 @@ class DailyFileLogListenerTest {
     fun `should keep only maxFileCount files`() {
         // Given
         listener.maxFileCount = 3
-        listener.maxFileAgeDays = 999 // Nie usuwamy ze względu na wiek
+        listener.maxFileAgeDays = 9999 // Do not delete based on age
 
         println("\nTest: Keep only ${listener.maxFileCount} files")
 
-        // Tworzymy 5 plików
+        // Create 5 files
         val files = (1..5).map { i ->
             createLogFile("test-2024010$i.log", 5 - i)
         }
@@ -137,22 +124,22 @@ class DailyFileLogListenerTest {
 
         assertEquals(3, remainingFiles.size)
 
-        // Sprawdzamy że zostały 3 najnowsze pliki
+        // Verify that the 3 newest files remain
         assertTrue(fileExists(files[2].path), "File 3 should exist")
         assertTrue(fileExists(files[3].path), "File 4 should exist")
         assertTrue(fileExists(files[4].path), "File 5 should exist")
 
-        // A 2 najstarsze zostały usunięte
+        // Verify that the 2 oldest files were deleted
         assertFalse(fileExists(files[0].path), "File 1 should be deleted")
         assertFalse(fileExists(files[1].path), "File 2 should be deleted")
     }
 
     @Test
     fun `should handle empty directory`() {
-        // Given - pusty katalog
+        // Given - empty directory
         println("\n=== Test: Handle empty directory ===")
 
-        // When & Then - nie powinno rzucić wyjątku
+        // When & Then - should not throw
         assertDoesNotThrow {
             listener.performCleanup()
         }
@@ -166,7 +153,7 @@ class DailyFileLogListenerTest {
         println("\n=== Test: Handle non-existent directory ===")
         println("Testing with path: ${listener.path}")
 
-        // When & Then - nie powinno rzucić wyjątku
+        // When & Then - should not throw
         assertDoesNotThrow {
             listener.performCleanup()
         }
@@ -180,7 +167,7 @@ class DailyFileLogListenerTest {
         val otherFile = createFile("other-file.txt", "Not a log file")
         val wrongPrefixFile = createFile("wrong-20240101.log", "Wrong prefix")
 
-        listener.maxFileAgeDays = 5 // Wszystkie pliki są "stare"
+        listener.maxFileAgeDays = 5 // All matching log files are old
 
         println("\n=== Test: Ignore non-log files ===")
         println("Created files:")
@@ -206,7 +193,7 @@ class DailyFileLogListenerTest {
     fun `cleanup should be called on start`() = runBlocking {
         // Given
         listener.maxFileAgeDays = 1
-        val oldFile = createLogFile("test-20240101.log", 10)
+        val oldFile = createLogFile(logFileName(daysAgo = 10), modifiedDaysAgo = 0)
 
         println("\n=== Test: Cleanup on start ===")
         println("Created old file: ${oldFile.name}")
@@ -214,12 +201,31 @@ class DailyFileLogListenerTest {
         // When
         listener.startListening(this)
 
-        // Then - plik powinien zostać usunięty bo onStart wywołuje performCleanup
+        // Then - the file should be deleted because onStart calls performCleanup
         println("After startListening: ${oldFile.name} exists: ${fileExists(oldFile.path)}")
         assertFalse(fileExists(oldFile.path), "Old file should be deleted on start")
 
         // Cleanup
         listener.stopListening()
+    }
+
+    @Test
+    fun `should keep newest rotation files regardless of modification time`() {
+        // Given
+        listener.maxFileCount = 2
+        listener.maxFileAgeDays = 9999
+        val date = Clock.System.now().toString("yyyyMMdd")
+        val mainFile = createLogFile("test-$date.log", modifiedDaysAgo = 30)
+        val previousFile = createLogFile("test-$date.1.log", modifiedDaysAgo = 20)
+        val oldestFile = createLogFile("test-$date.2.log", modifiedDaysAgo = 0)
+
+        // When
+        listener.performCleanup()
+
+        // Then
+        assertTrue(fileExists(mainFile.path), "Main file should be treated as the newest rotation file")
+        assertTrue(fileExists(previousFile.path), "First indexed file should be retained")
+        assertFalse(fileExists(oldestFile.path), "Highest rotation index should be deleted first")
     }
 
     // Helper functions
@@ -262,13 +268,13 @@ class DailyFileLogListenerTest {
         return files
     }
 
-    private fun createLogFile(name: String, daysAgo: Int): FileInfo {
+    private fun createLogFile(name: String, modifiedDaysAgo: Int): FileInfo {
         val filePath = "$tempDir/$name"
         val content = "Test log content for $name\n"
         writeFile(filePath, content)
 
-        // Ustawiamy datę modyfikacji pliku
-        val modifiedTime = Clock.System.now() - daysAgo.days
+        // Set the file modification time
+        val modifiedTime = Clock.System.now() - modifiedDaysAgo.days
         val timeSpec = modifiedTime.epochSeconds
 
         memScoped {
@@ -279,6 +285,11 @@ class DailyFileLogListenerTest {
         }
 
         return FileInfo(filePath, name, content.length.toLong())
+    }
+
+    private fun logFileName(daysAgo: Int): String {
+        val date = (Clock.System.now() - daysAgo.days).toString("yyyyMMdd")
+        return "test-$date.log"
     }
 
     private fun createFile(name: String, content: String): FileInfo {

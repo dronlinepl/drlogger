@@ -29,6 +29,12 @@ import kotlin.time.Instant
  */
 @OptIn(ExperimentalTime::class)
 open class BaseDailyFileLogListener : ALogListener("DailyFileLogListener"), ILogListener {
+    private data class LogFile(
+        val name: String,
+        val date: String,
+        val rotationIndex: Int,
+    )
+
     private val _path = atomic<String?>(null)
     private val _rotationFailedForFile = atomic<String?>(null)
 
@@ -156,21 +162,27 @@ open class BaseDailyFileLogListener : ALogListener("DailyFileLogListener"), ILog
         val logDirPath = _path.value ?: return
 
         runCatching {
-            val pattern = Regex("^${Regex.escape(namePrefix)}\\d{8}(\\.\\d+)?\\.log$")
+            val pattern = Regex("^${Regex.escape(namePrefix)}(\\d{8})(?:\\.(\\d+))?\\.log$")
             val logFiles = FileSystem.listFiles(logDirPath)
-                .filter { pattern.matches(it.name) }
-                .sortedBy { it.modifiedTime }
+                .mapNotNull { file ->
+                    val match = pattern.matchEntire(file.name) ?: return@mapNotNull null
+                    LogFile(
+                        name = file.name,
+                        date = match.groupValues[1],
+                        rotationIndex = match.groupValues[2].toIntOrNull() ?: 0,
+                    )
+                }
+                .sortedWith(compareBy<LogFile> { it.date }.thenByDescending { it.rotationIndex })
 
             if (logFiles.isEmpty()) return
 
-            val now = Clock.System.now()
-            val cutoffTime = now - maxFileAgeDays.days
+            val cutoffDate = (Clock.System.now() - maxFileAgeDays.days).toString("yyyyMMdd")
 
             val filesToDelete = mutableListOf<String>()
             val remainingFiles = logFiles.toMutableList()
 
             remainingFiles.forEach { file ->
-                if (file.modifiedTime < cutoffTime) {
+                if (file.date < cutoffDate) {
                     filesToDelete.add(file.name)
                 }
             }
