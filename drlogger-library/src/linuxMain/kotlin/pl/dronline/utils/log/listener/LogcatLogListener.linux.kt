@@ -16,6 +16,8 @@ import platform.posix.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+internal fun syslogPayload(message: String): ByteArray = message.encodeToByteArray()
+
 @ExperimentalTime
 @Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 actual class LogcatLogListener : ALogListener("LogcatLogListener"), ILogListener {
@@ -54,14 +56,17 @@ actual class LogcatLogListener : ALogListener("LogcatLogListener"), ILogListener
                 strncpy(logAddr.sun_path, "/dev/log", sizeOf<sockaddr_un>().convert())
 
                 val fullMessage = "<${mapLevel[level]}> $sb"
+                val payload = syslogPayload(fullMessage)
 
                 if (connect(logSocket, logAddr.ptr.reinterpret(), sizeOf<sockaddr_un>().convert()) < 0) {
                     perror("connect failed")
                     return
                 }
 
-                if (send(logSocket, fullMessage.cstr, fullMessage.length.convert(), 0) < 0) {
-                    perror("send failed")
+                payload.usePinned { pinned ->
+                    if (send(logSocket, pinned.addressOf(0), payload.size.convert(), 0) < 0) {
+                        perror("send failed")
+                    }
                 }
             }
         } finally {
